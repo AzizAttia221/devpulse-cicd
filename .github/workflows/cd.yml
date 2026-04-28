@@ -1,0 +1,86 @@
+# CD - Déploiement sur GitHub Pages
+# Ce workflow construit et déploie le site sur GitHub Pages à chaque push sur main
+
+name: CD - Déploiement
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      # 1. Récupérer le code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Générer les métadonnées de build
+      - name: Générer les métadonnées de build
+        id: metadata
+        run: |
+          echo "=== Génération des métadonnées ==="
+          
+          # Numéro de build (incrémental)
+          BUILD_NUMBER=$(($GITHUB_RUN_NUMBER))
+           echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          
+          # Hash du commit (court)
+          COMMIT_HASH=${GITHUB_SHA:0:7}
+          echo "commit_hash=$COMMIT_HASH" >> $GITHUB_OUTPUT
+          
+          # Date de déploiement
+          DEPLOY_DATE=$(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          echo "deploy_date=$DEPLOY_DATE" >> $GITHUB_OUTPUT
+          
+          echo "✅ Build #$BUILD_NUMBER - Commit: $COMMIT_HASH"
+
+      # 3. Créer le fichier env.js avec les métadonnées
+      - name: Créer env.js
+        run: |
+          cat > app/env.js << EOF
+          // Métadonnées de build générées automatiquement
+          // Ne pas modifier manuellement - ce fichier est régénéré à chaque déploiement
+          window.buildInfo = {
+            version: '1.0.0',
+            buildNumber: ${{ steps.metadata.outputs.build_number }},
+            commitHash: '${{ steps.metadata.outputs.commit_hash }}',
+            deployDate: '${{ steps.metadata.outputs.deploy_date }}'
+          };
+          EOF
+          echo "✅ Fichier env.js créé"
+
+      # 4. Configurer GitHub Pages
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # 5. Upload des fichiers statiques
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'app'
+
+      # 6. Déployer sur GitHub Pages
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      # 7. Afficher l'URL du site
+      - name: Afficher l'URL
+        run: |
+          echo ""
+          echo "🎉 Déploiement réussi !"
+          echo "🌐 URL du site: ${{ steps.deploy.outputs.url }}"

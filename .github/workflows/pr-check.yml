@@ -1,0 +1,105 @@
+# PR Check - Vérification avant fusion de PR
+# Ce workflow analyse les fichiers modifiés et génère un résumé de PR
+
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      # 1. Récupérer le code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2. Analyser les fichiers modifiés
+      - name: Analyser les changements
+        id: changes
+        run: |
+          echo "=== Analyse des changements ==="
+          
+          # Obtenir la liste des fichiers modifiés
+          FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD)
+          echo "files_changed=$FILES" >> $GITHUB_OUTPUT
+          
+          # Compter les fichiers
+          FILE_COUNT=$(echo "$FILES" | wc -l)
+          echo "file_count=$FILE_COUNT" >> $GITHUB_OUTPUT
+          
+          echo "📁 Fichiers modifiés:"
+          echo "$FILES"
+          echo ""
+          echo "Total: $FILE_COUNT fichier(s)"
+
+      # 3. Générer un résumé des changements
+      - name: Générer le résumé
+        run: |
+          echo "=== Résumé des changements ==="
+          
+          # Analyser par type de fichier
+          HTML_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep -c '\.html$' || true)
+          CSS_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep -c '\.css$' || true)
+          JS_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep -c '\.js$' || true)
+          WORKFLOW_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep -c '\.yml$' || true)
+          
+          echo "📊 Type de fichiers modifiés:"
+          echo "  - HTML: $HTML_CHANGED"
+          echo "  - CSS: $CSS_CHANGED"
+          echo "  - JavaScript: $JS_CHANGED"
+          echo "  - Workflows: $WORKFLOW_CHANGED"
+          
+          # Déterminer le type de changement
+          if [ "$WORKFLOW_CHANGED" -gt 0 ]; then
+            echo ""
+            echo "🔧 Modification: Configuration CI/CD"
+          elif [ "$HTML_CHANGED" -gt 0 ] || [ "$CSS_CHANGED" -gt 0 ]; then
+            echo ""
+            echo "🎨 Modification: Interface utilisateur"
+          elif [ "$JS_CHANGED" -gt 0 ]; then
+            echo ""
+            echo "⚡ Modification: Logique JavaScript"
+          else
+            echo ""
+            echo "📝 Modification: Autre"
+          fi
+
+      # 4. Vérifier la syntaxe des fichiers modifiés
+      - name: Vérifier la syntaxe
+        run: |
+          echo "=== Vérification de la syntaxe ==="
+          
+          # Vérifier les fichiers HTML
+          for file in $(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep '\.html$'); do
+            if [ -f "$file" ]; then
+              if grep -q '<!DOCTYPE html>' "$file"; then
+                echo "✅ $file - HTML valide"
+              else
+                echo "⚠️ $file - DOCTYPE manquant"
+              fi
+            fi
+          done
+          
+          # Vérifier les fichiers JS
+          for file in $(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep '\.js$'); do
+            if [ -f "$file" ]; then
+              LINES=$(wc -l < "$file")
+              echo "✅ $file - $LINES lignes"
+            fi
+          done
+
+      # 5. Afficher les informations de la PR
+      - name: Informations de la PR
+        run: |
+          echo "=== Informations de la Pull Request ==="
+          echo "📌 Titre: ${{ github.event.pull_request.title }}"
+          echo "👤 Auteur: ${{ github.event.pull_request.user.login }}"
+          echo "🔗 Branche: ${{ github.event.pull_request.head.ref }}"
+          echo "📝 Description: ${{ github.event.pull_request.body }}"

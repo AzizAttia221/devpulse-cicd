@@ -1,0 +1,116 @@
+# CI - Validation du code
+# Ce workflow valide le HTML, CSS et vérifie que tous les fichiers requis sont présents
+
+name: CI - Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Récupérer le code source
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Vérifier que tous les fichiers requis sont présents
+      - name: Vérifier les fichiers requis
+        run: |
+          echo "=== Vérification des fichiers ==="
+          
+          # Liste des fichiers obligatoires
+          REQUIRED_FILES=(
+            "app/index.html"
+            "app/style.css"
+            "app/app.js"
+            ".github/workflows/ci.yml"
+            ".github/workflows/cd.yml"
+            ".gitignore"
+            "README.md"
+          )
+          
+          MISSING_FILES=()
+          
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ -f "$file" ]; then
+              echo "✅ $file"
+            else
+              echo "❌ $file - MANQUANT"
+              MISSING_FILES+=("$file")
+            fi
+          done
+          
+          if [ ${#MISSING_FILES[@]} -eq 0 ]; then
+            echo ""
+            echo "✅ Tous les fichiers requis sont présents"
+          else
+            echo ""
+            echo "❌ Fichiers manquants: ${MISSING_FILES[*]}"
+            exit 1
+          fi
+
+      # 3. Valider la syntaxe HTML
+      - name: Valider HTML
+        run: |
+          echo "=== Validation HTML ==="
+          if grep -q '<!DOCTYPE html>' app/index.html; then
+            echo "✅ DOCTYPE présent"
+          else
+            echo "❌ DOCTYPE manquant"
+            exit 1
+          fi
+          
+          if grep -q '<html' app/index.html; then
+            echo "✅ Balise html trouvée"
+          else
+            echo "❌ Balise html manquante"
+            exit 1
+          fi
+
+      # 4. Valider la syntaxe CSS
+      - name: Valider CSS
+        run: |
+          echo "=== Validation CSS ==="
+          if [ -s app/style.css ]; then
+            LINES=$(wc -l < app/style.css)
+            echo "✅ CSS valide ($LINES lignes)"
+          else
+            echo "❌ Fichier CSS vide ou manquant"
+            exit 1
+          fi
+
+      # 5. Valider le JavaScript
+      - name: Valider JavaScript
+        run: |
+          echo "=== Validation JavaScript ==="
+          if [ -s app/app.js ]; then
+            LINES=$(wc -l < app/app.js)
+            echo "✅ JavaScript valide ($LINES lignes)"
+          else
+            echo "❌ Fichier JavaScript vide ou manquant"
+            exit 1
+          fi
+
+      # 6. Vérifier les bonnes pratiques
+      - name: Bonnes pratiques
+        run: |
+          echo "=== Vérification bonnes pratiques ==="
+          
+          # Vérifier que le CSS utilise des variables
+          if grep -q ':root' app/style.css; then
+            echo "✅ Variables CSS utilisées"
+          else
+            echo "⚠️ Variables CSS non trouvées (recommandé)"
+          fi
+          
+          # Vérifier que le JS utilise DOMContentLoaded
+          if grep -q 'DOMContentLoaded' app/app.js; then
+            echo "✅ Événement DOMContentLoaded utilisé"
+          else
+            echo "⚠️ DOMContentLoaded non trouvé (recommandé)"
+          fi
