@@ -2,7 +2,7 @@
 
 Projet d'apprentissage pour mettre en place un pipeline d'intégration et de déploiement continu (CI/CD) avec GitHub Actions.
 
-![CI](https://github.com/<votre-username>/devpulse-cicd/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/<Aziz>/devpulse-cicd/actions/workflows/ci.yml/badge.svg)
 ![CD](https://github.com/<votre-username>/devpulse-cicd/actions/workflows/cd.yml/badge.svg)
 
 ## 📋 Description
